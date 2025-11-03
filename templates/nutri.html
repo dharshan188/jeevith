@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>NutriGuard AI</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+  <div class="input-section">
+    <h2>🥗 NutriGuard AI — Smart Nutrition Recommender</h2>
+
+    <div class="user-inputs">
+      <input type="number" id="height" placeholder="Height (cm)">
+      <input type="number" id="weight" placeholder="Weight (kg)">
+      <select id="gender">
+        <option value="Male">Male ♂️</option>
+        <option value="Female">Female ♀️</option>
+      </select>
+      <input type="text" id="city" placeholder="Enter your city">
+    </div>
+
+    <div id="food-list">
+      <div class="food-item">
+        <input type="text" placeholder="Food name" class="food-name">
+        <input type="number" placeholder="Qty" class="food-qty" min="1" value="1">
+      </div>
+    </div>
+
+    <button onclick="addFood()">➕ Add Another Food</button>
+    <button onclick="analyze()">Analyze 🍽️</button>
+  </div>
+
+  <div id="output" class="output-section"></div>
+
+  <script>
+    function addFood() {
+      const list = document.getElementById("food-list");
+      const div = document.createElement("div");
+      div.classList.add("food-item");
+      div.innerHTML = `
+        <input type="text" placeholder="Food name" class="food-name">
+        <input type="number" placeholder="Qty" class="food-qty" min="1" value="1">
+      `;
+      list.appendChild(div);
+    }
+
+    async function analyze() {
+      const city = document.getElementById("city").value;
+      const gender = document.getElementById("gender").value;
+      const height = document.getElementById("height").value;
+      const weight = document.getElementById("weight").value;
+      const foodNames = document.querySelectorAll(".food-name");
+      const foodQtys = document.querySelectorAll(".food-qty");
+
+      const items = [];
+      for (let i = 0; i < foodNames.length; i++) {
+        const name = foodNames[i].value.trim();
+        const qty = foodQtys[i].value;
+        if (name) items.push({ name, qty });
+      }
+
+      const res = await fetch("/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ city, gender, height, weight, items })
+      });
+
+      const data = await res.json();
+      const out = document.getElementById("output");
+
+      if (data.error) {
+        out.innerHTML = `<p style="color:red;">❌ ${data.error}</p>`;
+        return;
+      }
+
+      out.innerHTML = `
+        <h3>✅ Weather in ${city}</h3>
+        <p>🌤 ${data.weather.condition}, 🌡 ${data.weather.temp}°C, 💧 ${data.weather.humidity}%</p>
+
+        <h3>📊 Total Nutrients:</h3>
+        <ul>${Object.entries(data.total_nutrients).map(([k,v])=>`<li>${k}: ${v}</li>`).join("")}</ul>
+
+        <h3>🧩 Deficient Nutrients:</h3>
+        ${Object.keys(data.deficient).length===0
+          ? "<p>🎉 All nutrients balanced!</p>"
+          : `<ul>${Object.entries(data.deficient).map(([k,v])=>`<li>${k}: need ${v} more</li>`).join("")}</ul>`}
+
+        <h3>🍴 Recommended Foods & Nutrients:</h3>
+        <ul>${data.recommendations.map(f=>`<li>${f[0]} — ${f[1]} ${f[2]}</li>`).join("")}</ul>
+      `;
+    }
+  </script>
+
+</body>
+</html>
